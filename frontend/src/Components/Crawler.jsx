@@ -59,7 +59,7 @@ const Crawler = ({ fetchArtists }) => {
           <Form.Label>Number of Artists:</Form.Label>
           <Form.Select onChange={(e) => setNumCrawls(e.target.value)}>
             <option>1</option>
-            <option selected>5</option>
+            <option>5</option>
             <option>10</option>
             <option>25</option>
             <option>50</option>
