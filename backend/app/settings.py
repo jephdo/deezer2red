@@ -1,6 +1,10 @@
+import os
+
 from pydantic import BaseSettings
 from deemix.settings import DEFAULTS
 from deezer import TrackFormats
+
+ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 class Settings(BaseSettings):
@@ -14,9 +18,10 @@ class Settings(BaseSettings):
     DOWNLOAD_FOLDER: str
 
     DEEZER_ARL_COOKIE: str
+    ROOT_FOLDER: str = ROOT_FOLDER
 
     class Config:
-        env_file = ".env"
+        env_file = os.path.join(ROOT_FOLDER, ".env")
 
 
 settings = Settings()
