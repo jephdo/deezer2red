@@ -18,6 +18,7 @@ class DeezerArtistTortoise(Model):
     image_url = fields.TextField()
     nb_album = fields.IntField()
     nb_fan = fields.IntField()
+    reviewed = fields.BooleanField(default=False)
 
 
 class DeezerAlbumTortoise(Model):
@@ -31,17 +32,14 @@ class DeezerAlbumTortoise(Model):
     )
 
 
-class Torrent(Model):
-    id = fields.IntField(pk=True, generated=True)
+class TorrentTortoise(Model):
+    id = fields.IntField(pk=True)
     create_date = fields.DatetimeField(default=datetime.now)
-    album = fields.ForeignKeyField("models.DeezerAlbumTortoise", related_name="torrent")
-    # download_path str
-
-    def get_download_path(self) -> str:
-        return ""
+    album = fields.ForeignKeyField("models.DeezerAlbumTortoise")
+    download_path = fields.TextField()
 
 
-class Upload(Model):
+class UploadTortoise(Model):
     id = fields.IntField(pk=True, generated=True)
     infohash = fields.CharField(max_length=40, unique=True)
     upload_date = fields.DatetimeField()
