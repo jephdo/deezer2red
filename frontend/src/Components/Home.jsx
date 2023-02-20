@@ -20,6 +20,10 @@ const Home = () => {
   useEffect(() => {
     fetchArtists();
   }, []);
+
+  const availableActions = {
+    addAction: true,
+  };
   return (
     <main>
       <Row>
@@ -30,7 +34,11 @@ const Home = () => {
 
       <Row>
         <Col>
-          <Artists artists={artists} />
+          <Artists
+            artists={artists}
+            availableActions={availableActions}
+            showToolbar={true}
+          />
         </Col>
       </Row>
     </main>

@@ -19,8 +19,8 @@ const Navigation = () => {
               <Nav.Link>Home</Nav.Link>
             </LinkContainer>
 
-            <LinkContainer to="/torrents">
-              <Nav.Link>Torrents</Nav.Link>
+            <LinkContainer to="/uploads">
+              <Nav.Link>Uploads</Nav.Link>
             </LinkContainer>
           </Nav>
         </Navbar.Collapse>

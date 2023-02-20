@@ -9,21 +9,33 @@ import ListGroup from "react-bootstrap/ListGroup";
 import InputGroup from "react-bootstrap/InputGroup";
 
 import Album from "./Album";
+import ReviewToolbar from "./ReviewToolbar";
 
-const Artists = ({ artists }) => {
+const Artists = ({ artists, availableActions, showToolbar }) => {
   return (
     <div>
       {artists.map((artist) => (
-        <Artist key={artist.id} artist={artist} />
+        <Artist
+          key={artist.id}
+          artist={artist}
+          availableActions={availableActions}
+          showToolbar={showToolbar}
+        />
       ))}
     </div>
   );
 };
 
-const Artist = ({ artist }) => {
+const Artist = ({ artist, availableActions, showToolbar = false }) => {
   const albums = [...artist.albums].sort(
     (a, b) => -1 * a.release_date.localeCompare(b.release_date)
   );
+
+  const [showArtist, setShowArtist] = React.useState(true);
+
+  if (!showArtist) {
+    return;
+  }
 
   const deezerUrl = `https://www.deezer.com/artist/${artist.id}`;
 
@@ -43,49 +55,27 @@ const Artist = ({ artist }) => {
         </Card>
       </Col>
       <Col>
-        <ListGroup className="my-4" variant="flush">
-          {albums.map((album) => (
-            <Album key={album.id} album={album} />
-          ))}
-        </ListGroup>
-      </Col>
-      <Col lg="3">
-        <div className="mx-2 my-4">
-          <SearchMatch artist={artist} />
-        </div>
+        {showToolbar && (
+          <Row>
+            <div className="mx-2 my-4">
+              <ReviewToolbar artist={artist} setShowArtist={setShowArtist} />
+            </div>
+          </Row>
+        )}
+
+        <Row>
+          <ListGroup className="my-4" variant="flush">
+            {albums.map((album) => (
+              <Album
+                key={album.id}
+                album={album}
+                availableActions={availableActions}
+              />
+            ))}
+          </ListGroup>
+        </Row>
       </Col>
     </Row>
-  );
-};
-
-const SearchMatch = ({ artist }) => {
-  const handleSearch = (event) => {
-    event.preventDefault();
-  };
-
-  const handleReview = (event) => {
-    event.preventDefault();
-  };
-
-  return (
-    <div>
-      <Form className="card p-2">
-        <InputGroup>
-          <Form.Control
-            type="text"
-            value={artist.name}
-            aria-label="Input group example"
-            aria-describedby="btnGroupAddon"
-          />
-          <Button variant="secondary" type="submit" onClick={handleSearch}>
-            Search
-          </Button>
-          <Button variant="danger" type="submit" onClick={handleReview}>
-            Reviewed
-          </Button>
-        </InputGroup>
-      </Form>
-    </div>
   );
 };
 
