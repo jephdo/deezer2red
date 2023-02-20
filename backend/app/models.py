@@ -1,15 +1,15 @@
-import enum
+import os
 
 from datetime import datetime
 
 from tortoise.models import Model
 from tortoise import fields
 
+from deemix.utils.pathtemplates import fixName as deemix_normalize_path
 
-class RecordType(enum.Enum):
-    ALBUM = "album"
-    EP = "ep"
-    SINGLE = "single"
+from .settings import DEEMIX_SETTINGS, settings
+
+from .schemas import RecordType, TrackerCode
 
 
 class DeezerArtistTortoise(Model):
@@ -23,27 +23,45 @@ class DeezerArtistTortoise(Model):
 
 class DeezerAlbumTortoise(Model):
     id = fields.IntField(pk=True)
-    title = fields.TextField(null=False)
-    image_url = fields.TextField(null=False)
-    release_date = fields.DateField(null=False)
+    title = fields.TextField()
+    image_url = fields.TextField()
+    release_date = fields.DateField()
     record_type = fields.CharEnumField(RecordType)
     artist = fields.ForeignKeyField(
-        "models.DeezerArtistTortoise", related_name="albums", null=False
+        "models.DeezerArtistTortoise",
+        related_name="albums",
     )
-
-
-class TorrentTortoise(Model):
-    id = fields.IntField(pk=True)
     create_date = fields.DatetimeField(default=datetime.now)
-    album = fields.ForeignKeyField("models.DeezerAlbumTortoise")
-    download_path = fields.TextField()
+    ready_to_add = fields.BooleanField(default=False)
+
+    @property
+    def download_path(self) -> str:
+        # Reproduced and modified from the deemix-py source code:
+        # https://gitlab.com/RemixDev/deemix-py/-/blob/main/deemix/utils/pathtemplates.py#L65
+        foldername = DEEMIX_SETTINGS["albumNameTemplate"]
+        substitutions = [
+            ("%artist%", self.artist.name),
+            ("%album%", self.title),
+            ("%year%", str(self.release_date.year)),
+        ]
+        for template, value in substitutions:
+            foldername = foldername.replace(template, value)
+
+        return os.path.join(
+            settings.DOWNLOAD_FOLDER, deemix_normalize_path(foldername), ""
+        )
 
 
 class UploadTortoise(Model):
     id = fields.IntField(pk=True, generated=True)
     infohash = fields.CharField(max_length=40, unique=True)
-    upload_date = fields.DatetimeField()
+    upload_date = fields.DatetimeField(default=datetime.now)
     upload_parameters = fields.JSONField()
     file = fields.BinaryField()
-    # tracker = fields.CharEnumField()
-    uploaded_id = fields.IntField()
+    tracker_code = fields.CharEnumField(TrackerCode)
+    uploaded_torrent_id = fields.IntField(null=True)
+    uploaded_group_id = fields.IntField(null=True)
+    album = fields.ForeignKeyField(
+        "models.DeezerAlbumTortoise",
+        related_name="uploads",
+    )

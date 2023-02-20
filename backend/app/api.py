@@ -12,12 +12,19 @@ from aiolimiter import AsyncLimiter
 from .models import (
     DeezerArtistTortoise,
     DeezerAlbumTortoise,
-    TorrentTortoise,
     UploadTortoise,
     RecordType,
 )
-from .schemas import DeezerArtist, DeezerAlbum, GazelleSearchResult, Torrent
-from .external import DeezerAPI, RedactedAPI, generate_folder_path, download_album
+from .schemas import (
+    DeezerArtist,
+    DeezerAlbum,
+    GazelleSearchResult,
+    ArtistUpdate,
+    TrackerAPIResponse,
+    TrackerCode,
+    UploadParameters,
+)
+from .external import DeezerAPI, RedactedAPI, download_album, UploadManager
 from .settings import settings
 
 # The actual rate limit is 50 calls per 5 seconds not 15 calls per 5 seconds:
@@ -47,16 +54,31 @@ async def hello():
 
 
 @app.get("/artists", response_model=list[DeezerArtist])
-async def get_artists(remove_singles: bool = True, remove_reviewed: bool = True):
+async def get_artists(
+    remove_singles: bool = True, only_added: bool = False, remove_reviewed: bool = True
+):
     artists = await DeezerArtistTortoise.all().prefetch_related("albums").limit(10)
 
     results = []
     for artist in artists:
-        albums = [DeezerAlbum.from_orm(album) for album in artist.albums]
+        albums = artist.albums
+
+        if remove_reviewed and artist.reviewed:
+            continue
+
         if remove_singles:
             albums = [
                 album for album in albums if album.record_type != RecordType.SINGLE
             ]
+
+        if only_added:
+            if not any(a.ready_to_add for a in albums):
+                continue
+            else:
+                albums = [a for a in albums if a.ready_to_add]
+
+        albums = [DeezerAlbum.from_orm(album) for album in albums]
+
         results.append(
             DeezerArtist(
                 id=artist.id,
@@ -96,7 +118,6 @@ async def crawl_artist(client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: 
     async with DEEZER_RATE_LIMIT:
         artist = await deezer.fetch_artist(client, artist_id)
         if artist:
-            print(artist)
             await DeezerArtistTortoise.create(**artist.dict(exclude_unset=True))
             albums = await deezer.fetch_albums(client, artist_id)
             for album in albums:
@@ -110,7 +131,7 @@ async def crawl_artist(client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: 
 @atomic()
 async def crawl_deezer(
     start_id: int = Query(..., gt=0),
-    num_crawls: int = Query(..., gt=0, lt=10),
+    num_crawls: int = Query(..., gt=0, lt=settings.MAX_CRAWLS_PER_RUN),
     deezer: DeezerAPI = Depends(DeezerAPI),
 ) -> list[DeezerArtist]:
     results = []
@@ -122,28 +143,68 @@ async def crawl_deezer(
     return [result for result in results if result]
 
 
-@app.post("/album/{id}/generate", status_code=status.HTTP_201_CREATED)
-async def create_torrent(
+@app.put("/album/{id}/add")
+async def add_torrent(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),
-) -> Torrent:
-    download_path = generate_folder_path(album)
-    # if not os.path.exists(download_path):
-    #     os.makedirs(download_path)
-    torrent = await TorrentTortoise.create(
-        id=album.id, album=album, download_path=download_path
-    )
-    return Torrent.from_orm(torrent)
+) -> DeezerAlbum:
+    album.ready_to_add = True
+    await album.save()
+
+    return DeezerAlbum.from_orm(album)
 
 
-# @app.get("/album/{id}/path")
-# async def get_download_path(album: DeezerAlbumTortoise = Depends(get_album_or_404)):
-#     return generate_folder_path(album)
+@app.put("/artist/{id}/review")
+async def review_artist(
+    artist: DeezerArtistTortoise = Depends(get_artist_or_404),
+) -> ArtistUpdate:
+    artist.reviewed = True
+    await artist.save()
+
+    return ArtistUpdate.from_orm(artist)
 
 
-@app.get("/torrent/{id}/download")
-def download(id):
+@app.get("/album/{id}/download")
+async def download_album(id):
     download_album(id)
     return {"ok": "ok"}
+
+
+@app.put("/album/{id}/upload")
+@atomic()
+async def upload_album(
+    album: DeezerAlbumTortoise = Depends(get_album_or_404),
+    deezer: DeezerAPI = Depends(DeezerAPI),
+    manager: UploadManager = Depends(UploadManager),
+    tracker_code: TrackerCode = TrackerCode.RED,
+) -> TrackerAPIResponse:
+
+    async with httpx.AsyncClient() as client:
+        album_deezer_api = await deezer.fetch_album_details(client, album.id)
+
+    if not manager.check_files_ready(album_deezer_api, album.download_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    torrent = manager.generate_torrent(album.download_path, tracker_code)
+    params = UploadParameters.from_deezer(album_deezer_api)
+    upload = await UploadTortoise.create(
+        infohash=torrent.infohash,
+        upload_parameters=params.dict(by_alias=True),
+        file=torrent.dump(),
+        tracker_code=tracker_code,
+        album=album,
+    )
+
+    await manager.add_to_qbittorrent(upload.file)
+
+    async with httpx.AsyncClient() as client:
+        tracker_response = await manager.process_upload(
+            client, params, tracker_code, upload.file
+        )
+    print(tracker_response)
+    upload.update_from_dict(tracker_response.dict(exclude_unset=True))
+    await upload.save()
+
+    return tracker_response
 
 
 @app.get("/artist/{id}/search/redacted")
@@ -156,6 +217,19 @@ async def search_redacted(
         results = await redacted.search_artist(client, artist.name)
 
     return results
+
+
+@app.get("/tester/{id}")
+async def hi(album: DeezerAlbumTortoise = Depends(get_album_or_404)):
+
+    deezer = DeezerAPI()
+    async with httpx.AsyncClient() as client:
+        deezer_album = await deezer.fetch_album_details(client, album.id)
+
+    parameters = UploadParameters.from_deezer(deezer_album)
+    upload_manager = UploadManager(deezer_album, 1, album.download_path)
+
+    return upload_manager.files_ready
 
 
 register_tortoise(
