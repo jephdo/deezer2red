@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, HttpUrl, validator, Field
 
+from .settings import settings
+
 
 class RecordType(enum.Enum):
     ALBUM = "album"
@@ -153,6 +155,7 @@ class UploadParameters(BaseModel):
     tags: str
     image: str
     album_desc: str
+    release_desc: str
 
     class Config:
         allow_population_by_field_name = True
@@ -171,6 +174,7 @@ class UploadParameters(BaseModel):
             tags=album.genres,
             image=album.cover_url,
             album_desc=album,
+            release_desc=album.id,
         )
 
     @validator("tags", pre=True)
@@ -185,6 +189,17 @@ class UploadParameters(BaseModel):
             return ",".join(map(normalize_genre, genres))
 
         return format_genres(genres)
+
+    @validator("release_desc", pre=True)
+    def generate_release_description(cls, id: str | int):
+        if isinstance(id, str):
+            return id
+
+        logo_url = settings.DEEZER_LOGO_URL
+
+        desc = f"""[img]{logo_url}[/img]
+Sourced from [url=https://www.deezer.com/album/{id}]Deezer[/url]"""
+        return desc
 
     @validator("album_desc", pre=True)
     def generate_album_description(cls, album: str | AlbumDeezerAPI):

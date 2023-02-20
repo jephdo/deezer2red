@@ -26,8 +26,10 @@ class Settings(BaseSettings):
     QBITTORRENT_PORT: int
     QBITTORRENT_USERNAME: str
     QBITTORRENT_PASSWORD: str
-    QBITTORRENT_CATEGORY: str = 'deezer2red'
-    QBITTORRENT_TAGS: str = 'myupload'
+    QBITTORRENT_CATEGORY: str = "deezer2red"
+    QBITTORRENT_TAGS: str = "myupload"
+
+    DEEZER_LOGO_URL: str = "https://ptpimg.me/1obzt0.png"
 
     class Config:
         env_file = os.path.join(ROOT_FOLDER, ".env")
