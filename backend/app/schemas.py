@@ -195,10 +195,7 @@ class UploadParameters(BaseModel):
         if isinstance(id, str):
             return id
 
-        logo_url = settings.DEEZER_LOGO_URL
-
-        desc = f"""[img]{logo_url}[/img]
-Sourced from [url=https://www.deezer.com/album/{id}]Deezer[/url]"""
+        desc = f"""Sourced from [url=https://www.deezer.com/album/{id}]Deezer[/url]"""
         return desc
 
     @validator("album_desc", pre=True)

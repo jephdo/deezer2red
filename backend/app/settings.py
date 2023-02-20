@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DEEZER_ARL_COOKIE: str
     ROOT_FOLDER: str = ROOT_FOLDER
 
-    MAX_CRAWLS_PER_RUN: int = 10
+    MAX_CRAWLS_PER_RUN: int = 50
 
     QBITTORRENT_HOST: str
     QBITTORRENT_PORT: int
@@ -28,8 +28,6 @@ class Settings(BaseSettings):
     QBITTORRENT_PASSWORD: str
     QBITTORRENT_CATEGORY: str = "deezer2red"
     QBITTORRENT_TAGS: str = "myupload"
-
-    DEEZER_LOGO_URL: str = "https://ptpimg.me/1obzt0.png"
 
     class Config:
         env_file = os.path.join(ROOT_FOLDER, ".env")
