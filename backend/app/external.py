@@ -1,14 +1,12 @@
 import abc
 import difflib
 import pathlib
-import hashlib
 
 from io import BytesIO
 from typing import Optional
 
 import httpx
 import torf
-import pyben
 import qbittorrentapi
 
 from deezer import Deezer
@@ -234,12 +232,6 @@ def download_album(deezer_id: int):
     )
 
     Downloader(deezer, album, DEEMIX_SETTINGS).start()
-
-
-def get_infohash(torrentfile: bytes) -> str:
-    """Calculate the torrent infohash (v1) of a torrent file."""
-    torrent, _ = pyben.bendecode(torrentfile)
-    return hashlib.sha1(pyben.benencode(torrent["info"])).hexdigest()
 
 
 class UploadManager:
