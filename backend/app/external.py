@@ -92,12 +92,17 @@ class DeezerAPI:
         genres = [genre["name"] for genre in raw_data["genres"]["data"]]
 
         tracks = []
-        for track in raw_data["tracks"]["data"]:
+        for i, track in enumerate(raw_data["tracks"]["data"]):
             tracks.append(
                 AlbumTrackDeezerAPI(
                     id=track["id"],
                     title=track["title"],
                     duration_seconds=track["duration"],
+                    # The Deezer API doesn't actually return each track position
+                    # for the Album endpoint (but it does for the specific
+                    # Track endpoint). I'm assuming the tracks are returned in
+                    # sorted order rather than sending an API request for each track
+                    position=i + 1,
                 )
             )
 

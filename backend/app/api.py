@@ -4,7 +4,6 @@ import asyncio
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 
-from tortoise.contrib.fastapi import register_tortoise
 from tortoise.transactions import atomic
 from tortoise.exceptions import DoesNotExist
 from aiolimiter import AsyncLimiter
@@ -16,6 +15,8 @@ from .models import (
     RecordType,
 )
 from .schemas import (
+    AlbumDeezerAPI,
+    AlbumTrackDeezerAPI,
     DeezerArtist,
     DeezerAlbum,
     GazelleSearchResult,
@@ -23,6 +24,7 @@ from .schemas import (
     TrackerAPIResponse,
     TrackerCode,
     UploadParameters,
+    ParsedAudioFile,
 )
 from .external import DeezerAPI, RedactedAPI, download_album, UploadManager
 from .settings import settings
@@ -219,10 +221,38 @@ async def search_redacted(
     return results
 
 
-register_tortoise(
-    app,
-    db_url=settings.DATABASE_URL,
-    modules={"models": ["app.models"]},
-    generate_schemas=True,
-    add_exception_handlers=True,
-)
+@app.get("/album/{id}/verifications")
+async def verify_album(
+    album: DeezerAlbumTortoise = Depends(get_album_or_404),
+    deezer: DeezerAPI = Depends(DeezerAPI),
+) -> dict[str, bool]:
+
+    async with httpx.AsyncClient() as client:
+        deezer_album = await deezer.fetch_album_details(client, album.id)
+
+    verifications = verify_downloaded_contents(album.download_path, deezer_album)
+    return verifications
+
+
+def verify_downloaded_contents(
+    download_path: str, album: AlbumDeezerAPI
+) -> dict[str, bool]:
+    parsed_files = []
+    for filename in os.listdir(download_path):
+        if not filename.endswith(".flac"):
+            continue
+        filepath = os.path.join(download_path, filename)
+        parsed_files.append(ParsedAudioFile.from_filepath(filepath))
+    parsed_files = list(sorted(parsed_files, key=lambda x: x.position))
+
+    if len(album.tracks) != len(parsed_files):
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Number of tracks downloaded does not match album tracks",
+        )
+    results = {}
+
+    for parsed, track in zip(parsed_files, album.tracks):
+        results[parsed.filepath] = parsed.verify(album, track)
+
+    return results

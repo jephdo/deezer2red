@@ -1,10 +1,13 @@
 import enum
 import re
+import os
+import math
 
 from datetime import datetime, date, timedelta
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl, validator, Field
+import pymediainfo
+from pydantic import BaseModel, HttpUrl, validator, Field, conlist
 
 from .settings import settings
 
@@ -13,6 +16,7 @@ class RecordType(enum.Enum):
     ALBUM = "album"
     EP = "ep"
     SINGLE = "single"
+    COMPILATION = "compile"
 
 
 RECORD_TYPES = {
@@ -20,7 +24,7 @@ RECORD_TYPES = {
     # "soundtrack": 3,
     "ep": RecordType.EP,
     # "anthology": 6,
-    # "compilation": 7,
+    "compile": RecordType.COMPILATION,
     "single": RecordType.SINGLE,
     # "live album": 11,
     # "remix": 13,
@@ -95,6 +99,7 @@ class ArtistUpdate(BaseModel):
 class AlbumTrackDeezerAPI(BaseModel):
     id: int
     title: str
+    position: int
     duration_seconds: int
 
 
@@ -106,7 +111,9 @@ class AlbumDeezerAPI(BaseModel):
     release_date: date
     album_url: str
     cover_url: str
-    genres: list[str]
+    # Redacted actually requires every torrent upload to have at least
+    # one genre/tag
+    genres: conlist(str, min_items=1)
     label: str
     tracks: list[AlbumTrackDeezerAPI]
     contributors: dict[str, str]
@@ -124,7 +131,7 @@ RELEASE_TYPES = {
     # "soundtrack": 3,
     RecordType.EP: 5,
     # "anthology": 6,
-    # "compilation": 7,
+    RecordType.COMPILATION: 7,
     RecordType.SINGLE: 9,
     # "live album": 11,
     # "remix": 13,
@@ -245,3 +252,79 @@ class UploadParameters(BaseModel):
 
         importance = list(map(map_artist_type, importance))
         return list(artists), list(importance)
+
+
+class ParsedAudioFile(BaseModel):
+    title: str
+    album: str
+    artist: str
+    position: int
+    file_extension: str
+    format: str
+    duration_ms: int
+    bitrate: int
+    bitdepth: int
+    sampling_rate: int
+    filesize_bytes: int
+    filepath: str
+
+    def verify(self, album: AlbumDeezerAPI, track: AlbumTrackDeezerAPI) -> bool:
+        if self.title != track.title:
+            return False
+        if self.album != album.title:
+            return False
+        if self.artist != album.artist:
+            return False
+        if self.position != track.position:
+            return False
+        if self.format != "FLAC":
+            return False
+        if self.file_extension != "flac":
+            return False
+        if self.bitdepth != 16:
+            return False
+        if self.sampling_rate != 44100:
+            return False
+        # Assuming 16-bit FLAC bitrates will be between 400kbps to 1411 kbps:
+        if not (400 * 1000 < self.bitrate < 1411 * 1000):
+            return False
+        if not self.is_close(self.duration_ms / 1000, track.duration_seconds):
+            return False
+
+        # This is the bitrate as stated in the header of the audio file
+        # Expected filesize is this bitrate times the track length
+        # given by the Deezer API -- compare this to the actual filesize
+        # reported by the OS
+        expected_filesize_bytes = self.bitrate * track.duration_seconds / 8
+        actual_filesize_bytes = os.path.getsize(self.filepath)
+
+        if not self.is_close(expected_filesize_bytes, actual_filesize_bytes):
+            return False
+
+        return True
+
+    def is_close(self, a, b, epsilon=0.01) -> bool:
+        return math.isclose(a, b, rel_tol=epsilon)
+
+    @classmethod
+    def from_filepath(cls, filepath: str):
+        info = pymediainfo.MediaInfo.parse(filepath)
+
+        assert len(info.general_tracks) == 1 and len(info.audio_tracks) == 1
+
+        general, audio = info.general_tracks[0], info.audio_tracks[0]
+
+        return cls(
+            title=general.track_name,
+            album=general.album,
+            artist=general.album_performer,
+            position=general.track_name_position,
+            file_extension=general.file_extension,
+            format=audio.format,
+            duration_ms=audio.duration,
+            bitrate=audio.bit_rate,
+            bitdepth=audio.bit_depth,
+            sampling_rate=audio.sampling_rate,
+            filesize_bytes=general.file_size,
+            filepath=filepath,
+        )
