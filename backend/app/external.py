@@ -98,7 +98,7 @@ class DeezerAPI:
             tracks.append(
                 AlbumTrackDeezerAPI(
                     id=track["id"],
-                    title=track["title_short"],
+                    title=track["title"],
                     duration_seconds=track["duration"],
                 )
             )
