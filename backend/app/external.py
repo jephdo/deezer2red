@@ -240,19 +240,6 @@ def download_album(deezer_id: int):
 
 
 class UploadManager:
-    def check_files_ready(self, album: AlbumDeezerAPI, download_path: str):
-        # TODO: Ideally this verification should be more robust
-        # 1) Verify each track: generate the track filename from deemix and
-        #    determine if that file actually exists
-        # 2) There should be a cover.jpg file
-        # 3) Filesize should be reasonable based on track duration
-        #    (e.g. FLAC.bitrate * track.duration should roughly equal filesize)
-        # 4) There are no superfluous hidden files like @eaDir
-        path = pathlib.Path(download_path)
-        files = path.glob("*.flac")
-
-        return len(list(files)) == len(album.tracks)
-
     def generate_torrent(
         self, download_path: str, tracker_code: TrackerCode
     ) -> torf.Torrent:

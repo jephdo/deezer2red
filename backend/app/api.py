@@ -183,8 +183,13 @@ async def upload_album(
     async with httpx.AsyncClient() as client:
         album_deezer_api = await deezer.fetch_album_details(client, album.id)
 
-    if not manager.check_files_ready(album_deezer_api, album.download_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if not all(
+        verify_downloaded_contents(album.download_path, album_deezer_api).values()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Downloaded audio content does not conform to verification",
+        )
 
     torrent = manager.generate_torrent(album.download_path, tracker_code)
     params = UploadParameters.from_deezer(album_deezer_api)
