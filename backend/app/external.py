@@ -270,7 +270,7 @@ class UploadManager:
             )
         return response
 
-    async def add_to_qbittorrent(self, torrent_file: bytes):
+    def add_to_qbittorrent(self, torrent_file: bytes):
         client = qbittorrentapi.Client(
             host=settings.QBITTORRENT_HOST,
             port=settings.QBITTORRENT_PORT,

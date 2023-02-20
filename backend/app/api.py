@@ -201,7 +201,7 @@ async def upload_album(
         album=album,
     )
 
-    await manager.add_to_qbittorrent(upload.file)
+    manager.add_to_qbittorrent(upload.file)
 
     async with httpx.AsyncClient() as client:
         tracker_response = await manager.process_upload(
