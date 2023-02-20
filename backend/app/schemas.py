@@ -9,8 +9,6 @@ from typing import Optional
 import pymediainfo
 from pydantic import BaseModel, HttpUrl, validator, Field, conlist
 
-from .settings import settings
-
 
 class RecordType(enum.Enum):
     ALBUM = "album"
@@ -88,14 +86,6 @@ class ArtistUpdate(BaseModel):
         orm_mode = True
 
 
-# class AlbumUpload(BaseModel):
-#     id: int
-#     torrent_id: int
-#     group_id: int
-#     tracker_code: TrackerCode
-#     url: HttpUrl
-
-
 class AlbumTrackDeezerAPI(BaseModel):
     id: int
     title: str
@@ -113,7 +103,7 @@ class AlbumDeezerAPI(BaseModel):
     cover_url: str
     # Redacted actually requires every torrent upload to have at least
     # one genre/tag
-    genres: conlist(str, min_items=1)
+    genres: conlist(str, min_items=1)  # type: ignore
     label: str
     tracks: list[AlbumTrackDeezerAPI]
     contributors: dict[str, str]
@@ -171,8 +161,8 @@ class UploadParameters(BaseModel):
     def from_deezer(cls, album: AlbumDeezerAPI):
         (artists, importance) = cls.unzip_contributors(album.contributors)
         return cls(
-            artists=artists,
-            importance=importance,
+            artists=artists,  # type: ignore
+            importance=importance,  # type: ignore
             title=album.title,
             year=album.release_date.year,
             releasetype=RELEASE_TYPES[album.record_type],
@@ -182,7 +172,7 @@ class UploadParameters(BaseModel):
             image=album.cover_url,
             album_desc=album,
             release_desc=album.id,
-        )
+        )  # type: ignore
 
     @validator("tags", pre=True)
     def normalize_genre_tags(cls, genres: str | list[str]):

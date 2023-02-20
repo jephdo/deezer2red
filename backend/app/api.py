@@ -16,7 +16,6 @@ from .models import (
 )
 from .schemas import (
     AlbumDeezerAPI,
-    AlbumTrackDeezerAPI,
     DeezerArtist,
     DeezerAlbum,
     GazelleSearchResult,
@@ -63,7 +62,7 @@ async def get_artists(
 
     results = []
     for artist in artists:
-        albums = artist.albums
+        albums = artist.albums  # type: ignore
 
         if remove_reviewed and artist.reviewed:
             continue
@@ -84,7 +83,7 @@ async def get_artists(
         results.append(
             DeezerArtist(
                 id=artist.id,
-                image_url=artist.image_url,
+                image_url=artist.image_url,  # type: ignore
                 name=artist.name,
                 nb_album=artist.nb_album,
                 nb_fan=artist.nb_fan,
@@ -109,7 +108,7 @@ async def get_albums():
 async def get_artist_albums(
     artist: DeezerArtistTortoise = Depends(get_artist_or_404),
 ) -> list[DeezerAlbum]:
-    albums = artist.albums
+    albums = artist.albums  # type: ignore
     return [DeezerAlbum.from_orm(album) for album in albums]
 
 
@@ -149,7 +148,7 @@ async def crawl_deezer(
 async def add_torrent(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),
 ) -> DeezerAlbum:
-    album.ready_to_add = True
+    album.ready_to_add = True  # type: ignore
     await album.save()
 
     return DeezerAlbum.from_orm(album)
@@ -159,14 +158,15 @@ async def add_torrent(
 async def review_artist(
     artist: DeezerArtistTortoise = Depends(get_artist_or_404),
 ) -> ArtistUpdate:
-    artist.reviewed = True
+
+    artist.reviewed = True  # type: ignore
     await artist.save()
 
     return ArtistUpdate.from_orm(artist)
 
 
 @app.get("/album/{id}/download")
-async def download_album(id):
+async def download(id):
     download_album(id)
     return {"ok": "ok"}
 

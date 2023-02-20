@@ -33,7 +33,7 @@ class Settings(BaseSettings):
         env_file = os.path.join(ROOT_FOLDER, ".env")
 
 
-settings = Settings()
+settings = Settings()  # type: ignore
 
 # List of full deemix settings can be found here:
 # https://gitlab.com/RemixDev/deemix-py/-/blob/main/deemix/settings.py

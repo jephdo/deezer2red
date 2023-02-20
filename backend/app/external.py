@@ -1,6 +1,5 @@
 import abc
 import difflib
-import pathlib
 
 from io import BytesIO
 from typing import Optional
@@ -32,9 +31,6 @@ from .settings import settings, DEEMIX_SETTINGS
 class DeezerAPI:
 
     API_BASE_URL = "https://api.deezer.com"
-
-    def __init__(self):
-        pass
 
     async def fetch_artist(
         self, client: httpx.AsyncClient, id: int
@@ -186,7 +182,7 @@ class GazelleAPI(abc.ABC):
 
 
 class RedactedAPI(GazelleAPI):
-    tracker_code = TrackerCode.RED
+    tracker_code = TrackerCode.RED  # type: ignore
 
     def __init__(self):
 
@@ -194,7 +190,7 @@ class RedactedAPI(GazelleAPI):
 
 
 class OrpheusAPI(GazelleAPI):
-    tracker_code = TrackerCode.OPS
+    tracker_code = TrackerCode.OPS  # type: ignore
 
     def __init__(self):
         raise NotImplementedError
