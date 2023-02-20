@@ -200,7 +200,7 @@ async def upload_album(
         tracker_response = await manager.process_upload(
             client, params, tracker_code, upload.file
         )
-    print(tracker_response)
+
     upload.update_from_dict(tracker_response.dict(exclude_unset=True))
     await upload.save()
 
@@ -217,19 +217,6 @@ async def search_redacted(
         results = await redacted.search_artist(client, artist.name)
 
     return results
-
-
-@app.get("/tester/{id}")
-async def hi(album: DeezerAlbumTortoise = Depends(get_album_or_404)):
-
-    deezer = DeezerAPI()
-    async with httpx.AsyncClient() as client:
-        deezer_album = await deezer.fetch_album_details(client, album.id)
-
-    parameters = UploadParameters.from_deezer(deezer_album)
-    upload_manager = UploadManager(deezer_album, 1, album.download_path)
-
-    return upload_manager.files_ready
 
 
 register_tortoise(

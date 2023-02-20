@@ -6,7 +6,7 @@ import Container from "react-bootstrap/Container";
 
 import Home from "./Components/Home";
 import Navigation from "./Components/Navigation";
-import Torrents from "./Components/Torrents";
+import UploadManager from "./Components/UploadManager";
 
 function App() {
   return (
@@ -14,7 +14,7 @@ function App() {
       <Navigation />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/torrents" element={<Torrents />} />
+        <Route path="/uploads" element={<UploadManager />} />
       </Routes>
     </Container>
   );
