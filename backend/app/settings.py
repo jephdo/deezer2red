@@ -35,7 +35,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# List of full deemix settings can be found here:
+# https://gitlab.com/RemixDev/deemix-py/-/blob/main/deemix/settings.py
 DEEMIX_SETTINGS = DEFAULTS.copy()
 DEEMIX_SETTINGS["downloadLocation"] = settings.DOWNLOAD_FOLDER
 DEEMIX_SETTINGS["albumNameTemplate"] = "%artist% - %album% (%year%) [WEB FLAC]"
 DEEMIX_SETTINGS["maxBitrate"] = TrackFormats.FLAC
+DEEMIX_SETTINGS["queueConcurrency"] = 6
