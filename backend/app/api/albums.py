@@ -2,7 +2,7 @@ import os
 
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from tortoise.transactions import atomic
 from tortoise.exceptions import DoesNotExist
 
@@ -19,8 +19,7 @@ from app.schemas import (
     UploadParameters,
     ParsedAudioFile,
 )
-from app.external import DeezerAPI, RedactedAPI, download_album, UploadManager
-from app.settings import settings
+from app.external import DeezerAPI, download_album, UploadManager
 
 
 router = APIRouter()
