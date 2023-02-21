@@ -301,8 +301,15 @@ class ParsedAudioFile(BaseModel):
 
         return True
 
-    def is_close(self, a, b, epsilon=0.01) -> bool:
-        return math.isclose(a, b, rel_tol=epsilon)
+    def is_close(self, expected_bytes, actual_bytes) -> bool:
+        # A 3min FLAC audio file is gonna be 20MB-30MB, typically. Just
+        # from inspecting lots of FLAC files the threshold difference is usually
+        # at most 5%. However, need to handle the case for small audio files
+        # (e.g. the track duration may be only 10 seconds) and set a minimum
+        # filesize difference of 200KBs or 200_000 bytes
+        acceptable_difference = max(200_000, actual_bytes * 0.05)
+
+        return math.isclose(expected_bytes, actual_bytes, abs_tol=acceptable_difference)
 
     @classmethod
     def from_filepath(cls, filepath: str):
