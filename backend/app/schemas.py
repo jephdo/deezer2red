@@ -6,7 +6,7 @@ import math
 from datetime import datetime, date, timedelta
 from typing import Optional
 
-import pymediainfo
+import audio_metadata
 from pydantic import BaseModel, HttpUrl, validator, Field, conlist
 
 
@@ -249,14 +249,26 @@ class ParsedAudioFile(BaseModel):
     album: str
     artist: str
     position: int
-    file_extension: str
-    format: str
     duration_ms: int
     bitrate: int
     bitdepth: int
     sampling_rate: int
-    filesize_bytes: int
     filepath: str
+    md5: str
+
+    @validator("md5")
+    def check_unset_md5(cls, v):
+        try:
+            # When the md5 signature is unset, it's set as
+            # md5='00000000000000000000000000000000'
+            # A dirty hack is to just try to cast this to int and if it's successful
+            # it means the md5 signautre is unset. A real hash like
+            # '1edd613ea1db5c870971ad5d222440e5' will raise a ValueError
+            int(v)
+        except ValueError:
+            return v
+        else:
+            raise ValueError("MD5 signature unset in STREAMINFO")
 
     def verify(self, album: AlbumDeezerAPI, track: AlbumTrackDeezerAPI) -> bool:
         if self.title != track.title:
@@ -266,10 +278,6 @@ class ParsedAudioFile(BaseModel):
         if self.artist != album.artist:
             return False
         if self.position != track.position:
-            return False
-        if self.format != "FLAC":
-            return False
-        if self.file_extension != "flac":
             return False
         if self.bitdepth != 16:
             return False
@@ -298,23 +306,17 @@ class ParsedAudioFile(BaseModel):
 
     @classmethod
     def from_filepath(cls, filepath: str):
-        info = pymediainfo.MediaInfo.parse(filepath)
-
-        assert len(info.general_tracks) == 1 and len(info.audio_tracks) == 1
-
-        general, audio = info.general_tracks[0], info.audio_tracks[0]
+        info = audio_metadata.load(filepath)
 
         return cls(
-            title=general.track_name,
-            album=general.album,
-            artist=general.album_performer,
-            position=general.track_name_position,
-            file_extension=general.file_extension,
-            format=audio.format,
-            duration_ms=audio.duration,
-            bitrate=audio.bit_rate,
-            bitdepth=audio.bit_depth,
-            sampling_rate=audio.sampling_rate,
-            filesize_bytes=general.file_size,
+            title=info.tags.title[0],
+            album=info.tags.album[0],
+            artist=info.tags.albumartist[0],
+            position=info.tags.tracknumber[0],
+            duration_ms=int(info.streaminfo.duration * 1000),
+            bitrate=info.streaminfo.bitrate,
+            bitdepth=info.streaminfo.bit_depth,
+            sampling_rate=info.streaminfo.sample_rate,
             filepath=filepath,
+            md5=info.streaminfo.md5,
         )
