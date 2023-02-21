@@ -286,28 +286,38 @@ class ParsedAudioFile(BaseModel):
         # Assuming 16-bit FLAC bitrates will be between 400kbps to 1411 kbps:
         if not (400 * 1000 < self.bitrate < 1411 * 1000):
             return False
-        if not self.is_close(self.duration_ms / 1000, track.duration_seconds):
+        if not self.tracklength_close(track.duration_seconds, self.duration_ms // 1000):
             return False
 
         # This is the bitrate as stated in the header of the audio file
         # Expected filesize is this bitrate times the track length
         # given by the Deezer API -- compare this to the actual filesize
         # reported by the OS
-        expected_filesize_bytes = self.bitrate * track.duration_seconds / 8
+        expected_filesize_bytes = self.bitrate * track.duration_seconds // 8
         actual_filesize_bytes = os.path.getsize(self.filepath)
 
-        if not self.is_close(expected_filesize_bytes, actual_filesize_bytes):
+        if not self.filesize_close(expected_filesize_bytes, actual_filesize_bytes):
             return False
 
         return True
 
-    def is_close(self, expected_bytes, actual_bytes) -> bool:
+    def tracklength_close(
+        self, expected_duration_sec: int, actual_duration_sec: int
+    ) -> bool:
+        # Track must be within 5 seconds of the expected duration provided by
+        # Deezer API
+        acceptable_difference = 5
+        return math.isclose(
+            expected_duration_sec, actual_duration_sec, abs_tol=acceptable_difference
+        )
+
+    def filesize_close(self, expected_bytes: int, actual_bytes: int) -> bool:
         # A 3min FLAC audio file is gonna be 20MB-30MB, typically. Just
         # from inspecting lots of FLAC files the threshold difference is usually
         # at most 5%. However, need to handle the case for small audio files
         # (e.g. the track duration may be only 10 seconds) and set a minimum
         # filesize difference of 200KBs or 200_000 bytes
-        acceptable_difference = max(200_000, actual_bytes * 0.05)
+        acceptable_difference = max(200_000, int(actual_bytes * 0.05))
 
         return math.isclose(expected_bytes, actual_bytes, abs_tol=acceptable_difference)
 
