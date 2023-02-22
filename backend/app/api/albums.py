@@ -69,6 +69,18 @@ async def get_ready_albums(params: Params = Depends()) -> Page[DeezerArtistWithA
     return await paginate(queryset, params)
 
 
+@router.get("/albums/ready/debug")
+async def get_ready_albums_raw_values() -> list[int]:
+    ids = (
+        await DeezerAlbumTortoise.filter(
+            ready_to_add=True, uploads__isnull=True, artist__reviewed=False
+        )
+        .all()
+        .values_list("id", flat=True)
+    )
+    return ids
+
+
 @router.get("/albums/tracked")
 async def get_tracked_albums(
     params: Params = Depends(),
@@ -201,7 +213,17 @@ def verify_downloaded_contents(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Album not downloaded yet"
         )
+    if len(filenames) != len(album.tracks) + 1:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Encountered unexpected number of files in download folder",
+        )
     for filename in os.listdir(download_path):
+        if not filename.endswith((".flac", "cover.jpg")):
+            raise HTTPException(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Encountered unexpected file in download folder: {filename}",
+            )
         if not filename.endswith(".flac"):
             continue
         filepath = os.path.join(download_path, filename)
