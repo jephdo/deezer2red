@@ -120,6 +120,7 @@ class DeezerAPI:
             label=raw_data["label"],
             tracks=tracks,
             contributors=contributors,
+            upc=raw_data["upc"],
         )
         return album
 

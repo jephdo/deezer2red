@@ -188,6 +188,17 @@ async def upload_album(
     return tracker_response
 
 
+@router.get("/album/{id}/preview")
+async def preview_upload_parameters(
+    album: DeezerAlbumTortoise = Depends(get_album_or_404),
+    deezer: DeezerAPI = Depends(DeezerAPI),
+) -> UploadParameters:
+    async with httpx.AsyncClient() as client:
+        deezer_album = await deezer.fetch_album_details(client, album.id)
+
+    return UploadParameters.from_deezer(deezer_album)
+
+
 @router.get("/album/{id}/verifications")
 async def verify_downloaded_album(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),

@@ -117,6 +117,7 @@ class AlbumDeezerAPI(BaseModel):
     label: str
     tracks: list[AlbumTrackDeezerAPI]
     contributors: dict[str, str]
+    upc: str
 
 
 class TrackerAPIResponse(BaseModel):
@@ -181,7 +182,7 @@ class UploadParameters(BaseModel):
             tags=album.genres,
             image=album.cover_url,
             album_desc=album,
-            release_desc=album.id,
+            release_desc=album,
         )  # type: ignore
 
     @validator("tags", pre=True)
@@ -198,11 +199,11 @@ class UploadParameters(BaseModel):
         return format_genres(genres)
 
     @validator("release_desc", pre=True)
-    def generate_release_description(cls, id: str | int):
-        if isinstance(id, str):
-            return id
+    def generate_release_description(cls, album: str | AlbumDeezerAPI):
+        if isinstance(album, str):
+            return album
 
-        desc = f"""Sourced from [url=https://www.deezer.com/album/{id}]Deezer[/url]"""
+        desc = f"""Sourced from [url=https://www.deezer.com/album/{album.id}]Deezer[/url]\nLabel: {album.label}\nUPC: {album.upc}"""
         return desc
 
     @validator("album_desc", pre=True)
