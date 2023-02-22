@@ -7,7 +7,7 @@ import Col from "react-bootstrap/Col";
 import Artists from "./Artists";
 import Crawler from "./Crawler";
 
-const API_ENDPOINT = "http://172.30.1.27:8006/albums/tracked?size=5";
+const API_ENDPOINT = "http://172.30.1.27:8006/albums/tracked";
 
 const Home = () => {
   const [artists, setArtists] = useState([]);
