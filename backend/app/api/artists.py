@@ -13,12 +13,10 @@ from aiolimiter import AsyncLimiter
 from app.models import (
     DeezerArtistTortoise,
     DeezerAlbumTortoise,
-    RecordType,
 )
 from app.schemas import (
     DeezerArtist,
     DeezerArtistWithAlbums,
-    DeezerAlbum,
     GazelleSearchResult,
     ArtistUpdate,
     TrackerCode,
@@ -26,9 +24,6 @@ from app.schemas import (
 from app.external import (
     DeezerAPI,
     GazelleAPI,
-    RedactedAPI,
-    download_album,
-    UploadManager,
     TRACKER_APIS,
 )
 from app.settings import settings

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi_pagination.ext.tortoise import paginate
 from fastapi_pagination import Params, Page
 from tortoise.transactions import atomic
-from tortoise.expressions import Subquery
 from tortoise.exceptions import DoesNotExist
 from tortoise.query_utils import Prefetch
 
@@ -213,11 +212,7 @@ def verify_downloaded_contents(
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail="Album not downloaded yet"
         )
-    if len(filenames) != len(album.tracks) + 1:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Encountered unexpected number of files in download folder",
-        )
+
     for filename in os.listdir(download_path):
         if not filename.endswith((".flac", "cover.jpg")):
             raise HTTPException(
