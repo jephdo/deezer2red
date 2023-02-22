@@ -101,6 +101,16 @@ async def add_torrent(
     return DeezerAlbum.from_orm(album)
 
 
+@router.put("/album/{id}/remove")
+async def add_torrent(
+    album: DeezerAlbumTortoise = Depends(get_album_or_404),
+) -> DeezerAlbum:
+    album.ready_to_add = False  # type: ignore
+    await album.save()
+
+    return DeezerAlbum.from_orm(album)
+
+
 @router.get("/album/{id}/download")
 async def download(id):
     download_album(id)

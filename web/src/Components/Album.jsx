@@ -7,11 +7,16 @@ import Col from "react-bootstrap/Col";
 import Image from "react-bootstrap/Image";
 import ListGroup from "react-bootstrap/ListGroup";
 
-import { AddAction, UploadAction, DownloadAction } from "./Actions";
+import {
+  AddAction,
+  UploadAction,
+  DownloadAction,
+  RemoveAction,
+} from "./Actions";
 
 const Album = ({
   album,
-  availableActions: { addAction, downloadAction, uploadAction },
+  availableActions: { addAction, downloadAction, uploadAction, removeAction },
 }) => {
   const pillBg = (() => {
     switch (album.record_type) {
@@ -57,6 +62,13 @@ const Album = ({
             <ButtonGroup>
               {addAction && (
                 <AddAction
+                  album={album}
+                  setTitle={setTitle}
+                  isDisabled={isDisabled}
+                />
+              )}
+              {removeAction && (
+                <RemoveAction
                   album={album}
                   setTitle={setTitle}
                   isDisabled={isDisabled}

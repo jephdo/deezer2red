@@ -29,6 +29,15 @@ const AddAction = ({ album, setTitle, isDisabled }) => {
   );
 };
 
+const RemoveAction = ({ album, setTitle }) => {
+  const handleClick = handleClickFactory("remove", album, setTitle);
+  return (
+    <Button variant="primary" onClick={handleClick}>
+      Remove
+    </Button>
+  );
+};
+
 const DownloadAction = ({ album, setTitle }) => {
   const handleClick = handleClickFactory("download", album, setTitle);
   return (
@@ -47,4 +56,4 @@ const UploadAction = ({ album, setTitle }) => {
   );
 };
 
-export { AddAction, DownloadAction, UploadAction };
+export { AddAction, DownloadAction, UploadAction, RemoveAction };

@@ -32,6 +32,7 @@ const UploadManager = () => {
   const availableActions = {
     uploadAction: true,
     downloadAction: true,
+    removeAction: true,
   };
   return (
     <>
