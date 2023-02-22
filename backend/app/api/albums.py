@@ -2,7 +2,7 @@ import os
 
 import httpx
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi_pagination.ext.tortoise import paginate
 from fastapi_pagination import Params, Page
 from tortoise.transactions import atomic
@@ -10,6 +10,7 @@ from tortoise.expressions import Subquery
 from tortoise.exceptions import DoesNotExist
 from tortoise.query_utils import Prefetch
 
+from pydantic import ValidationError
 
 from app.models import (
     DeezerAlbumTortoise,
@@ -92,29 +93,45 @@ async def get_album(album: DeezerAlbum = Depends(get_album_or_404)) -> DeezerAlb
 
 
 @router.put("/album/{id}/add")
-async def add_torrent(
+async def add_album_upload_queue(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),
 ) -> DeezerAlbum:
     album.ready_to_add = True  # type: ignore
     await album.save()
 
-    return DeezerAlbum.from_orm(album)
+    return album
 
 
 @router.put("/album/{id}/remove")
-async def add_torrent(
+async def remove_album_upload_queue(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),
 ) -> DeezerAlbum:
     album.ready_to_add = False  # type: ignore
     await album.save()
 
-    return DeezerAlbum.from_orm(album)
+    return album
 
 
-@router.get("/album/{id}/download")
-async def download(id):
-    download_album(id)
-    return {"ok": "ok"}
+@router.put("/album/{id}/download")
+async def download_album_from_deezer(
+    background_tasks: BackgroundTasks,
+    album: DeezerAlbumTortoise = Depends(get_album_or_404),
+    deezer: DeezerAPI = Depends(DeezerAPI),
+):
+
+    async with httpx.AsyncClient() as client:
+        try:
+            album_deezer_api = await deezer.fetch_album_details(client, album.id)
+            params = UploadParameters.from_deezer(album_deezer_api)
+        except ValidationError as exc:
+            raise HTTPException(
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Metadata from Deezer API insufficient for uploading:  {exc}",
+            )
+
+    background_tasks.add_task(download_album, album.id)
+
+    return album
 
 
 @router.put("/album/{id}/upload")
@@ -161,7 +178,7 @@ async def upload_album(
 
 
 @router.get("/album/{id}/verifications")
-async def verify_album(
+async def verify_downloaded_album(
     album: DeezerAlbumTortoise = Depends(get_album_or_404),
     deezer: DeezerAPI = Depends(DeezerAPI),
 ) -> dict[str, bool]:

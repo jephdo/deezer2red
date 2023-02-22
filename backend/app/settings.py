@@ -44,3 +44,5 @@ DEEMIX_SETTINGS["downloadLocation"] = settings.DOWNLOAD_FOLDER
 DEEMIX_SETTINGS["albumNameTemplate"] = "%artist% - %album% (%year%) [WEB FLAC]"
 DEEMIX_SETTINGS["maxBitrate"] = TrackFormats.FLAC
 DEEMIX_SETTINGS["queueConcurrency"] = 6
+DEEMIX_SETTINGS["logErrors"] = False
+DEEMIX_SETTINGS["overwriteFile"] = "y"

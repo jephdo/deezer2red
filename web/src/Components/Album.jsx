@@ -43,7 +43,7 @@ const Album = ({
               <Image src={album.image_url} thumbnail />
             </a>
           </Col>
-          <Col lg="7">
+          <Col lg="6">
             {" "}
             <div className="fw-bold">
               {title}{" "}
@@ -58,7 +58,7 @@ const Album = ({
               | <span>{album.release_date}</span>
             </div>
           </Col>
-          <Col lg="3">
+          <Col lg="4">
             <ButtonGroup>
               {addAction && (
                 <AddAction
