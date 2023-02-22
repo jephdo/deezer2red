@@ -3,17 +3,24 @@ import os
 import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi_pagination.ext.tortoise import paginate
+from fastapi_pagination import Params, Page
 from tortoise.transactions import atomic
+from tortoise.expressions import Subquery
 from tortoise.exceptions import DoesNotExist
+from tortoise.query_utils import Prefetch
 
 
 from app.models import (
     DeezerAlbumTortoise,
+    DeezerArtistTortoise,
     UploadTortoise,
 )
 from app.schemas import (
     AlbumDeezerAPI,
     DeezerAlbum,
+    DeezerArtistWithAlbums,
+    RecordType,
     TrackerAPIResponse,
     TrackerCode,
     UploadParameters,
@@ -32,10 +39,56 @@ async def get_album_or_404(id: int) -> DeezerAlbumTortoise:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 
-@router.get("/albums", response_model=list[DeezerAlbum])
-async def get_albums():
-    albums = await DeezerAlbumTortoise.all()
-    return [DeezerAlbum.from_orm(album) for album in albums]
+@router.get("/albums")
+async def get_albums(params: Params = Depends()) -> Page[DeezerAlbum]:
+    results = await paginate(DeezerAlbumTortoise, params)
+    return results
+
+
+@router.get("/albums/ready")
+async def get_ready_albums(params: Params = Depends()) -> Page[DeezerArtistWithAlbums]:
+    artists = (
+        await DeezerArtistTortoise.filter(
+            albums__ready_to_add=True, albums__uploads__isnull=True
+        )
+        .distinct()
+        .values_list("id", flat=True)
+    )
+
+    queryset = (
+        DeezerArtistTortoise.filter(reviewed=False, id__in=artists)
+        .prefetch_related(
+            Prefetch(
+                "albums",
+                DeezerAlbumTortoise.filter(ready_to_add=True, uploads__isnull=True),
+            )
+        )
+        .order_by("-create_date", "-id")
+    )
+    return await paginate(queryset, params)
+
+
+@router.get("/albums/tracked")
+async def get_tracked_albums(
+    params: Params = Depends(),
+) -> Page[DeezerArtistWithAlbums]:
+    queryset = (
+        DeezerArtistTortoise.filter(
+            reviewed=False,
+        )
+        .prefetch_related(
+            Prefetch(
+                "albums", DeezerAlbumTortoise.exclude(record_type=RecordType.SINGLE)
+            )
+        )
+        .order_by("-create_date", "-id")
+    )
+    return await paginate(queryset, params)
+
+
+@router.get("/album/{id}")
+async def get_album(album: DeezerAlbum = Depends(get_album_or_404)) -> DeezerAlbum:
+    return album
 
 
 @router.put("/album/{id}/add")
@@ -114,6 +167,13 @@ def verify_downloaded_contents(
     download_path: str, album: AlbumDeezerAPI
 ) -> dict[str, bool]:
     parsed_files = []
+
+    try:
+        filenames = os.listdir(download_path)
+    except FileNotFoundError:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Album not downloaded yet"
+        )
     for filename in os.listdir(download_path):
         if not filename.endswith(".flac"):
             continue

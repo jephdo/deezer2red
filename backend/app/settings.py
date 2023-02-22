@@ -10,7 +10,7 @@ ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 class Settings(BaseSettings):
 
     DEBUG: bool = True
-    DATABASE_URL: str = "sqlite://db.sqlite"
+    DATABASE_URL: str = "sqlite://" + os.path.join(ROOT_FOLDER, "db.sqlite")
 
     REDACTED_API_KEY: str
     REDACTED_ANNOUNCE_URL: str
@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
+
+print(settings.DATABASE_URL)
 
 # List of full deemix settings can be found here:
 # https://gitlab.com/RemixDev/deemix-py/-/blob/main/deemix/settings.py

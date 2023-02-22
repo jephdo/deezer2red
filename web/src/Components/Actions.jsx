@@ -20,10 +20,10 @@ const handleClickFactory = (urlSuffix, album, setTitle) => {
   return handleClick;
 };
 
-const AddAction = ({ album, setTitle }) => {
+const AddAction = ({ album, setTitle, isDisabled }) => {
   const handleClick = handleClickFactory("add", album, setTitle);
   return (
-    <Button variant="primary" onClick={handleClick}>
+    <Button variant="primary" onClick={handleClick} disabled={isDisabled}>
       Add
     </Button>
   );

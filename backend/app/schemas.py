@@ -55,6 +55,7 @@ class DeezerAlbum(BaseModel):
     image_url: HttpUrl
     release_date: date
     record_type: RecordType
+    ready_to_add: Optional[bool] = False
 
     @validator("release_date", pre=True)
     def date_validate(cls, v):
@@ -72,10 +73,19 @@ class DeezerArtist(BaseModel):
     image_url: HttpUrl
     nb_album: int
     nb_fan: int
-    albums: Optional[list[DeezerAlbum]] = None
+    create_date: Optional[datetime]
 
     class Config:
         orm_mode = True
+
+
+class DeezerArtistWithAlbums(DeezerArtist):
+
+    albums: list[DeezerAlbum]
+
+    @validator("albums", pre=True)
+    def serialize_tortoise_albums(cls, albums):
+        return [DeezerAlbum.from_orm(a) for a in albums]
 
 
 class ArtistUpdate(BaseModel):

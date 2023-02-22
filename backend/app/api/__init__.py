@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 
-
 from app.settings import settings
 from .artists import router as artists_router
 from .albums import router as albums_router
@@ -14,7 +13,8 @@ app.include_router(albums_router, tags=["albums"])
 
 @app.get("/")
 async def root():
-    response = {"message": "Hello! This is your backend speaking."}
+    routes = {route.name: route.path for route in app.routes}
+    response = {"message": "Hello! This is your backend speaking.", "routes": routes}
     if settings.DEBUG:
         response["settings"] = settings.dict()  # type: ignore
     return response

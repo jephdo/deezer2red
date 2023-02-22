@@ -6,9 +6,9 @@ import ApiResponseAlert from "./ApiResponseAlert";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 
-const API_CRAWL_URL = "http://172.30.1.27:8006/crawl";
+const API_CRAWL_URL = "http://172.30.1.27:8006/artists/crawl";
 
-const Crawler = ({ fetchArtists }) => {
+const Crawler = ({ fetchArtists, pageSettings }) => {
   const [startId, setStartId] = React.useState(null);
   const [numCrawls, setNumCrawls] = React.useState(5);
   const [alerts, setAlerts] = React.useState([]);
@@ -27,7 +27,7 @@ const Crawler = ({ fetchArtists }) => {
           <ApiResponseAlert variant="primary" message="Crawl ok" />
         );
         setAlerts([...alerts, new_alert]);
-        fetchArtists();
+        fetchArtists(pageSettings.page);
       })
       .catch(function (error) {
         const details = error.response.data.detail;

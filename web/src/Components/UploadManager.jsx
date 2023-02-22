@@ -6,15 +6,22 @@ import Col from "react-bootstrap/Col";
 
 import Artists from "./Artists";
 
-const API_ENDPOINT = "http://172.30.1.27:8006/artists";
+const API_ENDPOINT = "http://172.30.1.27:8006/albums/ready";
 
 const UploadManager = () => {
   const [artists, setArtists] = useState([]);
-  const fetchArtists = () => {
+  const [pageSettings, setPageSettings] = useState({});
+
+  const fetchArtists = (page = 1, size = 5) => {
     axios
-      .get(API_ENDPOINT, { params: { only_added: true } })
+      .get(API_ENDPOINT, { params: { page: page, size: size } })
       .then((response) => {
-        setArtists(response.data);
+        setArtists(response.data.items);
+        setPageSettings({
+          page: response.data.page,
+          pages: response.data.pages,
+        });
+        console.log(pageSettings);
       });
   };
 
@@ -33,6 +40,8 @@ const UploadManager = () => {
           <Col>
             <Artists
               artists={artists}
+              fetchArtists={fetchArtists}
+              pageSettings={pageSettings}
               availableActions={availableActions}
               showToolbar={false}
             />

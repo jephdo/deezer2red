@@ -19,6 +19,7 @@ class DeezerArtistTortoise(Model):
     nb_album = fields.IntField()
     nb_fan = fields.IntField()
     reviewed = fields.BooleanField(default=False)
+    create_date = fields.DatetimeField(default=datetime.now)
 
 
 class DeezerAlbumTortoise(Model):

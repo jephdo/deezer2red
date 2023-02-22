@@ -10,19 +10,40 @@ import InputGroup from "react-bootstrap/InputGroup";
 
 import Album from "./Album";
 import ReviewToolbar from "./ReviewToolbar";
+import Paginator from "./Paginator";
 
-const Artists = ({ artists, availableActions, showToolbar }) => {
+const Artists = ({
+  artists,
+  fetchArtists,
+  pageSettings,
+  availableActions,
+  showToolbar,
+}) => {
   return (
-    <div>
-      {artists.map((artist) => (
-        <Artist
-          key={artist.id}
-          artist={artist}
-          availableActions={availableActions}
-          showToolbar={showToolbar}
-        />
-      ))}
-    </div>
+    <>
+      <Row>
+        {" "}
+        {artists.map((artist) => (
+          <Artist
+            key={artist.id}
+            artist={artist}
+            availableActions={availableActions}
+            showToolbar={showToolbar}
+          />
+        ))}
+      </Row>
+
+      <Row className="d-flex justify-content-center">
+        <Col className="col-lg-1">
+          {" "}
+          <Paginator
+            page={pageSettings.page}
+            pages={pageSettings.pages}
+            fetchArtists={fetchArtists}
+          />
+        </Col>
+      </Row>
+    </>
   );
 };
 

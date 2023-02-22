@@ -1,7 +1,10 @@
 import asyncio
+from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi_pagination.ext.tortoise import paginate
+from fastapi_pagination import Params, Page
 
 from tortoise.transactions import atomic
 from tortoise.exceptions import DoesNotExist
@@ -14,11 +17,20 @@ from app.models import (
 )
 from app.schemas import (
     DeezerArtist,
+    DeezerArtistWithAlbums,
     DeezerAlbum,
     GazelleSearchResult,
     ArtistUpdate,
+    TrackerCode,
 )
-from app.external import DeezerAPI, RedactedAPI, download_album, UploadManager
+from app.external import (
+    DeezerAPI,
+    GazelleAPI,
+    RedactedAPI,
+    download_album,
+    UploadManager,
+    TRACKER_APIS,
+)
 from app.settings import settings
 
 # The actual rate limit is 50 calls per 5 seconds not 15 calls per 5 seconds:
@@ -30,64 +42,20 @@ router = APIRouter()
 
 async def get_artist_or_404(id: int) -> DeezerArtistTortoise:
     try:
-        return await DeezerArtistTortoise.get(id=id).prefetch_related("albums")
+        return await DeezerArtistTortoise.get(id=id)
     except DoesNotExist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
 
-@router.get("/artists", response_model=list[DeezerArtist])
-async def get_artists(
-    remove_singles: bool = True, only_added: bool = False, remove_reviewed: bool = True
-):
-    artists = await DeezerArtistTortoise.all().prefetch_related("albums").limit(10)
-
-    results = []
-    for artist in artists:
-        albums = artist.albums  # type: ignore
-
-        if remove_reviewed and artist.reviewed:
-            continue
-
-        if remove_singles:
-            albums = [
-                album for album in albums if album.record_type != RecordType.SINGLE
-            ]
-
-        if only_added:
-            if not any(a.ready_to_add for a in albums):
-                continue
-            else:
-                albums = [a for a in albums if a.ready_to_add]
-
-        albums = [DeezerAlbum.from_orm(album) for album in albums]
-
-        results.append(
-            DeezerArtist(
-                id=artist.id,
-                image_url=artist.image_url,  # type: ignore
-                name=artist.name,
-                nb_album=artist.nb_album,
-                nb_fan=artist.nb_fan,
-                albums=albums,
-            )
-        )
-    return results
+@router.get("/artists")
+async def get_artists(params: Params = Depends()) -> Page[DeezerArtist]:
+    artists = await paginate(DeezerArtistTortoise.all(), params)
+    return artists
 
 
-@router.get("/artist/{id}", response_model=DeezerArtist)
-async def get_artist(artist: DeezerArtistTortoise = Depends(get_artist_or_404)):
-    return DeezerArtist.from_orm(artist)
-
-
-@router.get("/artist/{id}/albums")
-async def get_artist_albums(
-    artist: DeezerArtistTortoise = Depends(get_artist_or_404),
-) -> list[DeezerAlbum]:
-    albums = artist.albums  # type: ignore
-    return [DeezerAlbum.from_orm(album) for album in albums]
-
-
-async def crawl_artist(client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: int):
+async def crawl_artist(
+    client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: int
+) -> Optional[DeezerArtist]:
     if await DeezerArtistTortoise.get_or_none(id=artist_id):
         return None
 
@@ -103,7 +71,7 @@ async def crawl_artist(client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: 
             return None
 
 
-@router.post("/crawl")
+@router.post("/artists/crawl")
 @atomic()
 async def crawl_deezer(
     start_id: int = Query(..., gt=0),
@@ -119,6 +87,22 @@ async def crawl_deezer(
     return [result for result in results if result]
 
 
+@router.get("/artist/{id}")
+async def get_artist(
+    artist: DeezerArtist = Depends(get_artist_or_404),
+) -> DeezerArtist:
+    return artist
+
+
+@router.get("/artist/{id}/albums")
+async def get_artist_albums(
+    artist: DeezerArtistTortoise = Depends(get_artist_or_404),
+) -> DeezerArtistWithAlbums:
+    await artist.fetch_related("albums")
+
+    return artist  # type: ignore
+
+
 @router.put("/artist/{id}/review")
 async def review_artist(
     artist: DeezerArtistTortoise = Depends(get_artist_or_404),
@@ -130,13 +114,23 @@ async def review_artist(
     return ArtistUpdate.from_orm(artist)
 
 
-@router.get("/artist/{id}/search/redacted")
+def get_tracker_or_404(tracker_code: TrackerCode) -> GazelleAPI:
+    try:
+        return TRACKER_APIS[tracker_code]()
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No tracker found for {tracker_code}",
+        )
+
+
+@router.get("/artist/{id}/search")
 async def search_redacted(
     artist: DeezerArtistTortoise = Depends(get_artist_or_404),
-    redacted=Depends(RedactedAPI),
+    tracker=Depends(get_tracker_or_404),
 ) -> list[GazelleSearchResult]:
 
     async with httpx.AsyncClient() as client:
-        results = await redacted.search_artist(client, artist.name)
+        results = await tracker.search_artist(client, artist.name)
 
     return results

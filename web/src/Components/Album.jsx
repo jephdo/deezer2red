@@ -26,7 +26,7 @@ const Album = ({
     }
   })();
   const deezerUrl = `https://www.deezer.com/album/${album.id}`;
-
+  const isDisabled = album.ready_to_add;
   const [title, setTitle] = React.useState(album.title);
 
   return (
@@ -55,7 +55,13 @@ const Album = ({
           </Col>
           <Col lg="3">
             <ButtonGroup>
-              {addAction && <AddAction album={album} setTitle={setTitle} />}
+              {addAction && (
+                <AddAction
+                  album={album}
+                  setTitle={setTitle}
+                  isDisabled={isDisabled}
+                />
+              )}
               {downloadAction && (
                 <DownloadAction album={album} setTitle={setTitle} />
               )}
