@@ -266,6 +266,7 @@ class ParsedAudioFile(BaseModel):
     sampling_rate: int
     filepath: str
     md5: str
+    upc: str
 
     @validator("md5")
     def check_unset_md5(cls, v):
@@ -293,6 +294,8 @@ class ParsedAudioFile(BaseModel):
         if self.bitdepth != 16:
             return False
         if self.sampling_rate != 44100:
+            return False
+        if self.upc != album.upc:
             return False
         # Assuming 16-bit FLAC bitrates will be between 400kbps to 1411 kbps:
         if not (400 * 1000 < self.bitrate < 1411 * 1000):
@@ -347,4 +350,5 @@ class ParsedAudioFile(BaseModel):
             sampling_rate=info.streaminfo.sample_rate,
             filepath=filepath,
             md5=info.streaminfo.md5,
+            upc=info.tags.barcode[0],
         )
