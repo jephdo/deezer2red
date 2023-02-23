@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import httpx
 
@@ -77,7 +78,7 @@ async def get_ready_albums_raw_values() -> list[int]:
         .all()
         .values_list("id", flat=True)
     )
-    return ids
+    return ids  # type: ignore
 
 
 @router.get("/albums/tracked")
@@ -110,7 +111,7 @@ async def add_album_upload_queue(
     album.ready_to_add = True  # type: ignore
     await album.save()
 
-    return album
+    return album  # type: ignore
 
 
 @router.put("/album/{id}/remove")
@@ -120,7 +121,12 @@ async def remove_album_upload_queue(
     album.ready_to_add = False  # type: ignore
     await album.save()
 
-    return album
+    try:
+        shutil.rmtree(album.download_path)
+    except FileNotFoundError:
+        pass
+
+    return album  # type: ignore
 
 
 @router.put("/album/{id}/download")
@@ -133,7 +139,7 @@ async def download_album_from_deezer(
     async with httpx.AsyncClient() as client:
         try:
             album_deezer_api = await deezer.fetch_album_details(client, album.id)
-            params = UploadParameters.from_deezer(album_deezer_api)
+            UploadParameters.from_deezer(album_deezer_api)
         except ValidationError as exc:
             raise HTTPException(
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
