@@ -8,7 +8,7 @@ from fastapi_pagination import Params, Page
 
 from tortoise.transactions import atomic
 from tortoise.exceptions import DoesNotExist
-from aiolimiter import AsyncLimiter
+from asynciolimiter import StrictLimiter
 
 from app.models import (
     DeezerArtistTortoise,
@@ -28,11 +28,11 @@ from app.external import (
 )
 from app.settings import settings
 
-# The actual rate limit is 50 calls per 5 seconds not 15 calls per 5 seconds:
-# https://developers.deezer.com/api
-DEEZER_RATE_LIMIT = AsyncLimiter(5, 1)
-
 router = APIRouter()
+
+
+def get_api_rate_limiter():
+    return StrictLimiter(settings.DEEZER_API_RATE_LIMIT)
 
 
 async def get_artist_or_404(id: int) -> DeezerArtistTortoise:
@@ -49,21 +49,22 @@ async def get_artists(params: Params = Depends()) -> Page[DeezerArtist]:
 
 
 async def crawl_artist(
-    client: httpx.AsyncClient, deezer: DeezerAPI, artist_id: int
+    client: httpx.AsyncClient, limiter: StrictLimiter, deezer: DeezerAPI, artist_id: int
 ) -> Optional[DeezerArtist]:
     if await DeezerArtistTortoise.get_or_none(id=artist_id):
         return None
 
-    async with DEEZER_RATE_LIMIT:
-        artist = await deezer.fetch_artist(client, artist_id)
-        if artist:
-            await DeezerArtistTortoise.create(**artist.dict(exclude_unset=True))
-            albums = await deezer.fetch_albums(client, artist_id)
-            for album in albums:
-                await DeezerAlbumTortoise.create(**album.dict())
-            return artist
-        else:
-            return None
+    await limiter.wait()
+
+    artist = await deezer.fetch_artist(client, artist_id)
+    if artist:
+        await DeezerArtistTortoise.create(**artist.dict(exclude_unset=True))
+        albums = await deezer.fetch_albums(client, artist_id)
+        for album in albums:
+            await DeezerAlbumTortoise.create(**album.dict())
+        return artist
+    else:
+        return None
 
 
 @router.post("/artists/crawl")
@@ -72,11 +73,14 @@ async def crawl_deezer(
     start_id: int = Query(..., gt=0),
     num_crawls: int = Query(..., gt=0, lt=settings.MAX_CRAWLS_PER_RUN),
     deezer: DeezerAPI = Depends(DeezerAPI),
+    limiter: StrictLimiter = Depends(get_api_rate_limiter),
 ) -> list[DeezerArtist]:
     results = []
     async with httpx.AsyncClient() as client:
         end_id = start_id + num_crawls
-        tasks = [crawl_artist(client, deezer, id) for id in range(start_id, end_id)]
+        tasks = [
+            crawl_artist(client, limiter, deezer, id) for id in range(start_id, end_id)
+        ]
         results = await asyncio.gather(*tasks)
 
     return [result for result in results if result]

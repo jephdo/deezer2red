@@ -1,4 +1,4 @@
-aiolimiter==1.0.0
+asynciolimiter==1.0.0b1
 audio-metadata==0.11.1
 deemix==3.6.6
 fastapi==0.92.0
