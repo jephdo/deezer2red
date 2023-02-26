@@ -12,15 +12,20 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     DATABASE_URL: str = "sqlite://" + os.path.join(ROOT_FOLDER, "db.sqlite")
 
+    DOWNLOAD_FOLDER: str
+
+    # In terms of requests per second:
+    # The actual rate limit is 50 calls per 5 seconds
+    # https://developers.deezer.com/api
+    DEEZER_API_RATE_LIMIT: int = 5
+    DEEZER_ARL_COOKIE: str
+
+    MAX_CRAWLS_PER_RUN: int = 75
+
     REDACTED_API_KEY: str
     REDACTED_ANNOUNCE_URL: str
 
-    DOWNLOAD_FOLDER: str
-
-    DEEZER_ARL_COOKIE: str
     ROOT_FOLDER: str = ROOT_FOLDER
-
-    MAX_CRAWLS_PER_RUN: int = 50
 
     QBITTORRENT_HOST: str
     QBITTORRENT_PORT: int
@@ -35,7 +40,6 @@ class Settings(BaseSettings):
 
 settings = Settings()  # type: ignore
 
-print(settings.DATABASE_URL)
 
 # List of full deemix settings can be found here:
 # https://gitlab.com/RemixDev/deemix-py/-/blob/main/deemix/settings.py
@@ -43,6 +47,6 @@ DEEMIX_SETTINGS = DEFAULTS.copy()
 DEEMIX_SETTINGS["downloadLocation"] = settings.DOWNLOAD_FOLDER
 DEEMIX_SETTINGS["albumNameTemplate"] = "%artist% - %album% (%year%) [WEB FLAC]"
 DEEMIX_SETTINGS["maxBitrate"] = TrackFormats.FLAC
-DEEMIX_SETTINGS["queueConcurrency"] = 6
+DEEMIX_SETTINGS["queueConcurrency"] = 3
 DEEMIX_SETTINGS["logErrors"] = False
 DEEMIX_SETTINGS["overwriteFile"] = "y"
