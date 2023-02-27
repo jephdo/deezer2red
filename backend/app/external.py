@@ -1,6 +1,7 @@
 import abc
 import difflib
 
+from datetime import datetime, date
 from io import BytesIO
 from typing import Optional
 
@@ -8,21 +9,20 @@ import httpx
 import torf
 import qbittorrentapi
 
+
 from deezer import Deezer
 from deemix.itemgen import generateAlbumItem
 from deemix.downloader import Downloader
 
+from .models import TrackerCode, RecordType
 from .schemas import (
     DeezerArtist,
     DeezerAlbum,
     GazelleSearchResult,
-    AlbumDeezerAPI,
-    AlbumTrackDeezerAPI,
-    TrackerCode,
+    DeezerTrack,
     TrackerAPIResponse,
     UploadParameters,
-    RecordType,
-    RECORD_TYPES,
+    DEEZER_RECORD_TYPES,
 )
 
 from .settings import settings, DEEMIX_SETTINGS
@@ -32,15 +32,26 @@ class DeezerAPI:
 
     API_BASE_URL = "https://api.deezer.com"
 
+    def __init__(self, limiter=None):
+        self.limiter = limiter
+
+    async def get(self, client: httpx.AsyncClient, url: str) -> httpx.Response:
+        if self.limiter is not None:
+            await self.limiter.wait()
+        response = await client.get(url)
+        return response
+
     async def fetch_artist(
         self, client: httpx.AsyncClient, id: int
     ) -> Optional[DeezerArtist]:
         url = f"{self.API_BASE_URL}/artist/{id}"
-        response = await client.get(url)
+        response = await self.get(client, url)
         data = response.json()
 
-        if "error" in data:
-            return None
+        # Artist may not exist, will return code 800
+        # {'error': {'type': 'DataException', 'message': 'no data', 'code': 800}}
+        if "error" in data and data["error"]["code"] == 800:
+            return
 
         return DeezerArtist(
             id=data["id"],
@@ -55,42 +66,67 @@ class DeezerAPI:
     ) -> list[DeezerAlbum]:
         """Retrieves a list of albums given a specific artist ID"""
         url = f"{self.API_BASE_URL}/artist/{id}/albums"
-        response = await client.get(url)
+        response = await self.get(client, url)
         data = response.json()
 
         albums = []
         for record in data["data"]:
-            albums.append(
-                DeezerAlbum(
-                    id=record["id"],
-                    artist_id=id,
-                    title=record["title"],
-                    image_url=record["cover"],
-                    release_date=record["release_date"],
-                    record_type=RECORD_TYPES[record["record_type"]],
-                )
-            )
+            album_id = record["id"]
+            album = await self.fetch_album_details(client, album_id)
+            albums.append(album)
         return albums
 
     async def fetch_album_details(
         self, client: httpx.AsyncClient, id: int
-    ) -> AlbumDeezerAPI:
+    ) -> DeezerAlbum:
         """Retrieves complete metadata info about a particular album."""
 
         url = f"{self.API_BASE_URL}/album/{id}"
-        response = await client.get(url)
-
+        response = await self.get(client, url)
         data = response.json()
+        # The Deezer album APIs only return the release date of the digital stream
+        # not the actual physical release of the album. And the only way to get this
+        # information is to access the 'album' field in the Track endpoint...
+        # Have to make an extra API call to the Track endpoint to get this info:
+        physical_release_date = await self._fetch_release_date(client, data)
+        return self.parse_album_details(
+            data, physical_release_date=physical_release_date
+        )
 
-        return self.parse_album_details(data)
+    async def _fetch_release_date(
+        self, client: httpx.AsyncClient, album_raw_response: dict
+    ) -> date:
+        try:
+            raw_tracks = album_raw_response["tracks"]["data"]
+        except KeyError:
+            print(album_raw_response)
+            raise
 
-    def parse_album_details(self, raw_data: dict) -> AlbumDeezerAPI:
+        for track in raw_tracks:
+            track_details = await self.fetch_track_details(client, track["id"])
+            try:
+                release_date = track_details["album"]["release_date"]
+            except KeyError:
+                continue
+            release_date = datetime.strptime(release_date, "%Y-%m-%d").date()
+            return release_date
+        raise ValueError("Can not find album release date from Deezer track details.")
+
+    async def fetch_track_details(self, client: httpx.AsyncClient, id: int) -> dict:
+        url = f"{self.API_BASE_URL}/track/{id}"
+        response = await self.get(client, url)
+        data = response.json()
+        return data
+
+    def parse_album_details(
+        self, raw_data: dict, physical_release_date: date
+    ) -> DeezerAlbum:
         genres = [genre["name"] for genre in raw_data["genres"]["data"]]
 
         tracks = []
         for i, track in enumerate(raw_data["tracks"]["data"]):
             tracks.append(
-                AlbumTrackDeezerAPI(
+                DeezerTrack(
                     id=track["id"],
                     title=track["title"],
                     duration_seconds=track["duration"],
@@ -108,14 +144,16 @@ class DeezerAPI:
             role = contrib["role"]
             contributors[name] = role
 
-        album = AlbumDeezerAPI(
+        album = DeezerAlbum(
             id=raw_data["id"],
-            artist=raw_data["artist"]["name"],
+            artist_id=raw_data["artist"]["id"],
             title=raw_data["title"],
+            image_url=raw_data["cover_medium"],
+            digital_release_date=datetime.strptime(
+                raw_data["release_date"], "%Y-%m-%d"
+            ).date(),
+            release_date=physical_release_date,
             record_type=RecordType(raw_data["record_type"]),
-            release_date=raw_data["release_date"],
-            album_url=raw_data["link"],
-            cover_url=raw_data["cover_medium"],
             genres=genres,
             label=raw_data["label"],
             tracks=tracks,
@@ -155,7 +193,7 @@ class GazelleAPI(abc.ABC):
         return TrackerAPIResponse(
             torrentid=data["torrentid"],
             groupid=data["groupid"],
-            tracker_code=self.tracker_code,
+            tracker_code=self.tracker_code,  # type: ignore
         )
 
     async def search_artist(
@@ -187,7 +225,7 @@ class RedactedAPI(GazelleAPI):
 
     def __init__(self):
 
-        super().__init__("https://redacted.ch/ajax.php", settings.REDACTED_API_KEY)
+        super().__init__(settings.REDACTED_API_URL, settings.REDACTED_API_KEY)
 
 
 class OrpheusAPI(GazelleAPI):

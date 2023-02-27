@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 from pydantic import BaseSettings
 from deemix.settings import DEFAULTS
@@ -13,17 +14,20 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite://" + os.path.join(ROOT_FOLDER, "db.sqlite")
 
     DOWNLOAD_FOLDER: str
-
     # In terms of requests per second:
-    # The actual rate limit is 50 calls per 5 seconds
+    # The actual rate limit is 50 calls per 5 seconds or 10 requests / second
     # https://developers.deezer.com/api
     DEEZER_API_RATE_LIMIT: int = 5
     DEEZER_ARL_COOKIE: str
+    DEEZER_QUEUE_LIMIT: int = 50
+    DEEZER_MINIMUM_RELEASE_YEAR: int = datetime.now().year - 1
+    DEEZER_ARTIST_START_ID = 13000
 
     MAX_CRAWLS_PER_RUN: int = 75
 
     REDACTED_API_KEY: str
     REDACTED_ANNOUNCE_URL: str
+    REDACTED_API_URL: str
 
     ROOT_FOLDER: str = ROOT_FOLDER
 

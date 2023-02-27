@@ -1,39 +1,68 @@
 import os
+import enum
 
 from datetime import datetime
 
-from tortoise.models import Model
 from tortoise import fields
+from tortoise.models import Model
 
 from deemix.utils.pathtemplates import fixName as deemix_normalize_path
 
 from .settings import DEEMIX_SETTINGS, settings
 
-from .schemas import RecordType, TrackerCode
+
+class TrackerCode(enum.Enum):
+    RED = "RED"
+    OPS = "OPS"
 
 
-class DeezerArtistTortoise(Model):
+class RecordType(enum.Enum):
+    Album = "album"
+    EP = "ep"
+    Single = "single"
+    Compilation = "compile"
+
+
+class TrackingStatus(enum.Enum):
+    Added = "added"
+    Reviewed = "reviewed"
+    Downloaded = "downloaded"
+    Uploaded = "uploaded"
+    Disabled = "disabled"
+
+
+class Artist(Model):
     id = fields.IntField(pk=True)
     name = fields.TextField()
     image_url = fields.TextField()
     nb_album = fields.IntField()
     nb_fan = fields.IntField()
-    reviewed = fields.BooleanField(default=False)
+    disabled = fields.BooleanField(default=False)
     create_date = fields.DatetimeField(default=datetime.now)
 
 
-class DeezerAlbumTortoise(Model):
+class Album(Model):
     id = fields.IntField(pk=True)
-    title = fields.TextField()
-    image_url = fields.TextField()
-    release_date = fields.DateField()
-    record_type = fields.CharEnumField(RecordType)
     artist = fields.ForeignKeyField(
-        "models.DeezerArtistTortoise",
+        "models.Artist",
         related_name="albums",
     )
+    title = fields.TextField()
+    image_url = fields.TextField()
+    digital_release_date = fields.DateField()
+    release_date = fields.DateField()
     create_date = fields.DatetimeField(default=datetime.now)
-    ready_to_add = fields.BooleanField(default=False)
+    record_type = fields.CharEnumField(RecordType)
+    status = fields.CharEnumField(TrackingStatus, default=TrackingStatus.Added)
+    genres = fields.JSONField()
+    label = fields.TextField()
+    tracks = fields.JSONField()
+    contributors = fields.JSONField()
+    upc = fields.TextField()
+
+    @property
+    def album_url(self) -> str:
+        return f"https://www.deezer.com/album/{self.id}"
 
     @property
     def download_path(self) -> str:
@@ -53,16 +82,16 @@ class DeezerAlbumTortoise(Model):
         )
 
 
-class UploadTortoise(Model):
+class Upload(Model):
     id = fields.IntField(pk=True, generated=True)
-    infohash = fields.CharField(max_length=40, unique=True)
     upload_date = fields.DatetimeField(default=datetime.now)
-    upload_parameters = fields.JSONField()
-    file = fields.BinaryField()
     tracker_code = fields.CharEnumField(TrackerCode)
-    uploaded_torrent_id = fields.IntField(null=True)
-    uploaded_group_id = fields.IntField(null=True)
+    torrent_id = fields.IntField(null=True)
+    group_id = fields.IntField(null=True)
     album = fields.ForeignKeyField(
-        "models.DeezerAlbumTortoise",
+        "models.Album",
         related_name="uploads",
     )
+    infohash = fields.CharField(max_length=40, unique=True)
+    upload_parameters = fields.JSONField()
+    file = fields.BinaryField()

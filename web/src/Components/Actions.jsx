@@ -21,7 +21,7 @@ const handleClickFactory = (urlSuffix, album, setTitle) => {
 };
 
 const AddAction = ({ album, setTitle, isDisabled }) => {
-  const handleClick = handleClickFactory("add", album, setTitle);
+  const handleClick = handleClickFactory("reviewed", album, setTitle);
   return (
     <Button variant="primary" onClick={handleClick} disabled={isDisabled}>
       Add
@@ -30,7 +30,7 @@ const AddAction = ({ album, setTitle, isDisabled }) => {
 };
 
 const RemoveAction = ({ album, setTitle }) => {
-  const handleClick = handleClickFactory("remove", album, setTitle);
+  const handleClick = handleClickFactory("disabled", album, setTitle);
   return (
     <Button variant="primary" onClick={handleClick}>
       Remove

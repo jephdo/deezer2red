@@ -36,17 +36,17 @@ const Album = ({
 
   return (
     <ListGroup.Item>
-      <div className="ms-2 me-auto">
-        <Row>
-          <Col lg="2">
+      <div>
+        <Row className="mx-2 my-2">
+          <Col>
             <a href={deezerUrl} target="_blank" rel="noopener noreferrer">
               <Image src={album.image_url} thumbnail />
             </a>
           </Col>
-          <Col lg="6">
+          <Col lg="8">
             {" "}
             <div className="fw-bold">
-              {title}{" "}
+              {album.artist.name} | {title}{" "}
               <Badge pill bg={pillBg}>
                 {album.record_type}
               </Badge>{" "}
@@ -55,10 +55,11 @@ const Album = ({
               <span>
                 <kbd>{album.id}</kbd>
               </span>{" "}
-              | <span>{album.release_date}</span>
+              | <span>{album.digital_release_date}</span>
             </div>
+            <div>{album.status}</div>
           </Col>
-          <Col lg="4">
+          <Col>
             <ButtonGroup>
               {addAction && (
                 <AddAction

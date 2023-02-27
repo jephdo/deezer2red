@@ -4,29 +4,31 @@ import axios from "axios";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 
-import Artists from "./Artists";
+import Albums from "./Albums";
 
-const API_ENDPOINT = "http://172.30.1.27:8006/albums/ready";
+const API_ENDPOINT = "http://172.30.1.27:8006/albums/upload/ready";
 
 const UploadManager = () => {
-  const [artists, setArtists] = useState([]);
+  const [albums, setAlbums] = useState([]);
   const [pageSettings, setPageSettings] = useState({});
 
-  const fetchArtists = (page = 1, size = 5) => {
+  const fetchAlbums = (page = 1, size = 10) => {
     axios
       .get(API_ENDPOINT, { params: { page: page, size: size } })
       .then((response) => {
-        setArtists(response.data.items);
+        setAlbums(response.data.items);
         setPageSettings({
           page: response.data.page,
           pages: response.data.pages,
+          total: response.data.total,
+          size: response.data.size,
         });
         console.log(pageSettings);
       });
   };
 
   useEffect(() => {
-    fetchArtists();
+    fetchAlbums();
   }, []);
 
   const availableActions = {
@@ -39,12 +41,11 @@ const UploadManager = () => {
       <main>
         <Row>
           <Col>
-            <Artists
-              artists={artists}
-              fetchArtists={fetchArtists}
+            <Albums
+              albums={albums}
+              fetchAlbums={fetchAlbums}
               pageSettings={pageSettings}
               availableActions={availableActions}
-              showToolbar={false}
             />
           </Col>
         </Row>

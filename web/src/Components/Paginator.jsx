@@ -2,7 +2,7 @@ import React from "react";
 
 import Pagination from "react-bootstrap/Pagination";
 
-const Paginator = ({ page, pages, fetchArtists }) => {
+const Paginator = ({ page, pages, pageSettings, fetchAlbums }) => {
   if (pages < 2) {
     return;
   } else if (pages < 8) {
@@ -12,7 +12,7 @@ const Paginator = ({ page, pages, fetchArtists }) => {
         <Pagination.Item
           key={number}
           active={number === page}
-          onClick={() => fetchArtists(number)}
+          onClick={() => fetchAlbums(number)}
         >
           {number}
         </Pagination.Item>
@@ -25,15 +25,13 @@ const Paginator = ({ page, pages, fetchArtists }) => {
     const offset = 3;
     const start = Math.max(page - offset, 1);
     const end = Math.min(page + offset, pages);
-    console.log(start, end);
-    console.log(pages);
 
     for (let number = start; number <= end; number++) {
       items.push(
         <Pagination.Item
           key={number}
           active={number === page}
-          onClick={() => fetchArtists(number)}
+          onClick={() => fetchAlbums(number)}
         >
           {number}
         </Pagination.Item>
@@ -42,15 +40,15 @@ const Paginator = ({ page, pages, fetchArtists }) => {
 
     return (
       <Pagination>
-        <Pagination.First onClick={() => fetchArtists(1)} />
-        <Pagination.Prev onClick={() => fetchArtists(page - 1)} />
+        <Pagination.First onClick={() => fetchAlbums(1)} />
+        <Pagination.Prev onClick={() => fetchAlbums(page - 1)} />
         {start != 1 && <Pagination.Ellipsis disabled={true} />}
 
         {items}
 
         {end != pages && <Pagination.Ellipsis disabled={true} />}
-        <Pagination.Next onClick={() => fetchArtists(page + 1)} />
-        <Pagination.Last onClick={() => fetchArtists(pages)} />
+        <Pagination.Next onClick={() => fetchAlbums(page + 1)} />
+        <Pagination.Last onClick={() => fetchAlbums(pages)} />
       </Pagination>
     );
   }
