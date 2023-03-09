@@ -100,6 +100,7 @@ class AlbumInfo(BaseModel):
     create_date: datetime
     record_type: RecordType
     status: TrackingStatus
+    download_path: str
 
     class Config:
         orm_mode = True
