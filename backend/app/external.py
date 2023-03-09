@@ -8,6 +8,7 @@ from typing import Optional
 import httpx
 import torf
 import qbittorrentapi
+import pydantic
 
 
 from deezer import Deezer
@@ -72,7 +73,11 @@ class DeezerAPI:
         albums = []
         for record in data["data"]:
             album_id = record["id"]
-            album = await self.fetch_album_details(client, album_id)
+            try:
+                album = await self.fetch_album_details(client, album_id)
+            # Sometimes album metadata is incomplete like missing image_url:
+            except pydantic.ValidationError:
+                continue
             albums.append(album)
         return albums
 
